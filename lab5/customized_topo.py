@@ -12,7 +12,7 @@
 
 from mininet.topo import Topo
 from mininet.net import Mininet
-from mininet.node import Controller
+from mininet.node import OVSController
 from mininet.cli import CLI
 from mininet.log import setLogLevel
 
@@ -54,7 +54,9 @@ if __name__ == '__main__':
     
     # 创建网络
     topo = MyTopo()
-    net = Mininet(topo=topo, controller=Controller)
+    # 使用 OVSController，而不是默认的“controller”二进制，避免出现
+    # “c0 cannot find controller” 这类错误
+    net = Mininet(topo=topo, controller=OVSController)
     net.start()
     
     print("拓扑已创建，可以使用以下命令测试：")

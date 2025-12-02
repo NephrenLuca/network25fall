@@ -5,7 +5,7 @@
 """
 
 from mininet.net import Mininet
-from mininet.node import Controller
+from mininet.node import OVSController
 from mininet.cli import CLI
 from mininet.log import setLogLevel
 from customized_topo import MyTopo
@@ -54,7 +54,8 @@ def main():
         # 创建网络
         print("\n正在创建网络拓扑...")
         topo = MyTopo()
-        net = Mininet(topo=topo, controller=Controller)
+        # 使用 OVSController，避免旧版“controller”二进制缺失导致 c0 无法启动
+        net = Mininet(topo=topo, controller=OVSController)
         
         print("正在启动网络（这可能需要几秒钟）...")
         net.start()

@@ -15,7 +15,7 @@ TCP Flow 2: h1->h4, 10-30sec (注意：拓扑中没有h2，应该是h1->h4)
 
 from mininet.topo import Topo
 from mininet.net import Mininet
-from mininet.node import Controller
+from mininet.node import OVSController
 from mininet.cli import CLI
 from mininet.log import setLogLevel
 from mininet.link import TCLink
@@ -68,7 +68,8 @@ def main():
     
     # 创建网络
     topo = IperfTopo(loss=10)  # 默认10%丢包率
-    net = Mininet(topo=topo, controller=Controller, link=TCLink)
+    # 使用 OVSController，避免 “c0 cannot find controller” 等错误
+    net = Mininet(topo=topo, controller=OVSController, link=TCLink)
     net.start()
     
     h1, h3, h4 = net.get('h1', 'h3', 'h4')

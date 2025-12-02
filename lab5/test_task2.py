@@ -5,7 +5,7 @@
 """
 
 from mininet.net import Mininet
-from mininet.node import Controller
+from mininet.node import OVSController
 from mininet.link import TCLink
 from mininet.log import setLogLevel
 from host_iperf import IperfTopo
@@ -32,9 +32,9 @@ def test_with_loss_rate(loss_rate):
     print("测试丢包率: {}%".format(loss_rate))
     print("=" * 70)
     
-    # 创建网络
+    # 创建网络，使用 OVSController 作为控制器实现
     topo = IperfTopo(loss=loss_rate)
-    net = Mininet(topo=topo, controller=Controller, link=TCLink)
+    net = Mininet(topo=topo, controller=OVSController, link=TCLink)
     net.start()
     
     h1, h3, h4 = net.get('h1', 'h3', 'h4')
