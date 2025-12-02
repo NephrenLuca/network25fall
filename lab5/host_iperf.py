@@ -20,8 +20,6 @@ from mininet.cli import CLI
 from mininet.log import setLogLevel
 from mininet.link import TCLink
 import time
-import threading
-import subprocess
 import os
 
 class IperfTopo(Topo):
@@ -56,12 +54,16 @@ def run_iperf_server(host, port=5001):
     time.sleep(1)
 
 def run_iperf_client(host, server_ip, port=5001, duration=20, interval=0.5, output_file=None):
-    """在主机上运行iperf客户端，每interval秒测量一次"""
+    """在主机上后台运行iperf客户端，每interval秒测量一次
+
+    注意：使用 host.popen 而不是 host.cmd，避免在多线程/并发场景下
+    触发 Mininet 中 host.shell 的断言错误。
+    """
     cmd = 'iperf -c {} -p {} -t {} -i {}'.format(server_ip, port, duration, interval)
     if output_file:
         cmd += ' > {} 2>&1'.format(output_file)
-    result = host.cmd(cmd)
-    return result
+    # 通过 /bin/sh -c 执行带重定向的命令
+    return host.popen(['sh', '-c', cmd])
 
 def main():
     setLogLevel('info')
@@ -97,11 +99,7 @@ def main():
     # 启动Flow 1: h1->h3, 0-20sec
     print("\n启动TCP Flow 1: h1->h3 (0-20秒)")
     flow1_file = os.path.join(output_dir, 'flow1_result.txt')
-    flow1_thread = threading.Thread(
-        target=run_iperf_client,
-        args=(h1, '10.0.0.3', 5001, 20, 0.5, flow1_file)
-    )
-    flow1_thread.start()
+    flow1_proc = run_iperf_client(h1, '10.0.0.3', 5001, 20, 0.5, flow1_file)
     
     # 等待10秒后启动Flow 2
     print("等待10秒后启动Flow 2...")
@@ -110,16 +108,12 @@ def main():
     # 启动Flow 2: h1->h4, 10-30sec (实际运行20秒)
     print("启动TCP Flow 2: h1->h4 (10-30秒)")
     flow2_file = os.path.join(output_dir, 'flow2_result.txt')
-    flow2_thread = threading.Thread(
-        target=run_iperf_client,
-        args=(h1, '10.0.0.2', 5002, 20, 0.5, flow2_file)
-    )
-    flow2_thread.start()
+    flow2_proc = run_iperf_client(h1, '10.0.0.2', 5002, 20, 0.5, flow2_file)
     
     # 等待所有流完成
     print("\n等待所有TCP流完成...")
-    flow1_thread.join()
-    flow2_thread.join()
+    flow1_proc.wait()
+    flow2_proc.wait()
     
     print("\n测试完成！")
     print("Flow 1结果保存在: {}".format(flow1_file))

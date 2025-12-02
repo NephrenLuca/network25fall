@@ -10,7 +10,6 @@ from mininet.link import TCLink
 from mininet.log import setLogLevel
 from host_iperf import IperfTopo
 import time
-import threading
 import os
 
 def run_iperf_server(host, port=5001):
@@ -19,12 +18,12 @@ def run_iperf_server(host, port=5001):
     time.sleep(1)
 
 def run_iperf_client(host, server_ip, port=5001, duration=20, interval=0.5, output_file=None):
-    """在主机上运行iperf客户端"""
+    """在主机上后台运行iperf客户端"""
     cmd = 'iperf -c {} -p {} -t {} -i {}'.format(server_ip, port, duration, interval)
     if output_file:
         cmd += ' > {} 2>&1'.format(output_file)
-    result = host.cmd(cmd)
-    return result
+    # 使用 host.popen 而不是 host.cmd，避免多线程下的 shell 断言错误
+    return host.popen(['sh', '-c', cmd])
 
 def test_with_loss_rate(loss_rate):
     """使用指定丢包率进行测试"""
@@ -52,11 +51,7 @@ def test_with_loss_rate(loss_rate):
     # Flow 1: h1->h3, 0-20sec
     print("启动TCP Flow 1: h1->h3 (0-20秒)")
     flow1_file = os.path.join(output_dir, 'flow1_loss{}_result.txt'.format(loss_rate))
-    flow1_thread = threading.Thread(
-        target=run_iperf_client,
-        args=(h1, '10.0.0.3', 5001, 20, 0.5, flow1_file)
-    )
-    flow1_thread.start()
+    flow1_proc = run_iperf_client(h1, '10.0.0.3', 5001, 20, 0.5, flow1_file)
     
     # 等待10秒后启动Flow 2
     print("等待10秒后启动Flow 2...")
@@ -65,16 +60,12 @@ def test_with_loss_rate(loss_rate):
     # Flow 2: h1->h4, 10-30sec
     print("启动TCP Flow 2: h1->h4 (10-30秒)")
     flow2_file = os.path.join(output_dir, 'flow2_loss{}_result.txt'.format(loss_rate))
-    flow2_thread = threading.Thread(
-        target=run_iperf_client,
-        args=(h1, '10.0.0.2', 5002, 20, 0.5, flow2_file)
-    )
-    flow2_thread.start()
+    flow2_proc = run_iperf_client(h1, '10.0.0.2', 5002, 20, 0.5, flow2_file)
     
     # 等待所有流完成
     print("等待所有TCP流完成...")
-    flow1_thread.join()
-    flow2_thread.join()
+    flow1_proc.wait()
+    flow2_proc.wait()
     
     # 显示结果摘要
     print("\nFlow 1 结果 (前20行):")
